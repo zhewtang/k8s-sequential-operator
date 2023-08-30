@@ -1,0 +1,27 @@
+# permissions for end users to view ordereddeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: ordereddeployment-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: k8s-sequential-operator
+    app.kubernetes.io/part-of: k8s-sequential-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: ordereddeployment-viewer-role
+rules:
+- apiGroups:
+  - app.zhtang.github.io
+  resources:
+  - ordereddeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - app.zhtang.github.io
+  resources:
+  - ordereddeployments/status
+  verbs:
+  - get

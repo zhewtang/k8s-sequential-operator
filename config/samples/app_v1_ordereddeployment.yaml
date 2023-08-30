@@ -1,0 +1,12 @@
+apiVersion: app.zhtang.github.io/v1
+kind: OrderedDeployment
+metadata:
+  labels:
+    app.kubernetes.io/name: ordereddeployment
+    app.kubernetes.io/instance: ordereddeployment-sample
+    app.kubernetes.io/part-of: k8s-sequential-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: k8s-sequential-operator
+  name: ordereddeployment-sample
+spec:
+  # TODO(user): Add fields here
