@@ -27,8 +27,13 @@ type OrderedDeploymentSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	DeploymentOrder []string `json:"deploymentOrder"`
-	ImageName       string   `json:"imageName"`
+	DeploymentOrder []DeploymentDetail `json:"deploymentOrder"`
+}
+
+type DeploymentDetail struct {
+	// contains details of a specific deployment
+	DeploymentName string `json:"deploymentName"`
+	ImageName      string `json:"imageName"`
 }
 
 // OrderedDeploymentStatus defines the observed state of OrderedDeployment

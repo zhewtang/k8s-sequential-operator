@@ -10,6 +10,7 @@ metadata:
   name: ordereddeployment-sample
 spec:
   deploymentOrder:
-    - redis-leader
-    - redis-follower
-  imageName: "docker.io/redis:7.2"
+    - deploymentName: redis-leader
+      imageName: "docker.io/redis:7.2.0"
+    - deploymentName: redis-follower
+      imageName: "docker.io/redis:7.0.12"

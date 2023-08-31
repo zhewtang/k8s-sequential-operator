@@ -64,9 +64,10 @@ func (r *OrderedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// Reconcile logic: Iterate through the list of deployments and create/update them sequentially
-	for _, deploymentName := range orderedDeployment.Spec.DeploymentOrder {
+	for _, deploymentDetail := range orderedDeployment.Spec.DeploymentOrder {
 		// fetch the deployment resource
 		deployment := &appsv1.Deployment{}
+		deploymentName := deploymentDetail.DeploymentName
 		err := r.Get(ctx, client.ObjectKey{Namespace: orderedDeployment.Namespace, Name: deploymentName}, deployment)
 		if err != nil {
 			logger.Info("info", "deployment", deployment.Name, "namespace", orderedDeployment.Name, "target", deploymentName)
@@ -90,16 +91,17 @@ func (r *OrderedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		// Update the Deployment's image if needed
-		if deployment.Spec.Template.Spec.Containers[0].Image != orderedDeployment.Spec.ImageName {
+		imageName := deploymentDetail.ImageName
+		if deployment.Spec.Template.Spec.Containers[0].Image != imageName {
 			previous := deployment.Spec.Template.Spec.Containers[0].Image
-			deployment.Spec.Template.Spec.Containers[0].Image = orderedDeployment.Spec.ImageName
+			deployment.Spec.Template.Spec.Containers[0].Image = imageName
 			err := r.Update(ctx, deployment)
 			if err != nil {
 				logger.Error(err, "unable to update Deployment", "deployment", deploymentName)
 				return ctrl.Result{}, err
 			}
 
-			logger.Info("Deployment reconciled", "deployment", deploymentName, "previous", previous, "now", orderedDeployment.Spec.ImageName)
+			logger.Info("Deployment reconciled", "deployment", deploymentName, "previous", previous, "now", imageName)
 		} else {
 			logger.Info("Deployment already synced", "deployment", deploymentName)
 		}

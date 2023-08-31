@@ -36,13 +36,19 @@ spec:
             properties:
               deploymentOrder:
                 items:
-                  type: string
+                  properties:
+                    deploymentName:
+                      description: contains details of a specific deployment
+                      type: string
+                    imageName:
+                      type: string
+                  required:
+                  - deploymentName
+                  - imageName
+                  type: object
                 type: array
-              imageName:
-                type: string
             required:
             - deploymentOrder
-            - imageName
             type: object
           status:
             description: OrderedDeploymentStatus defines the observed state of OrderedDeployment
