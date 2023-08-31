@@ -18,12 +18,15 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	appv1 "zhtang.github.io/k8s-sequential-operator/api/v1"
 )
 
@@ -32,6 +35,10 @@ type OrderedDeploymentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+const (
+	reconcileInterval = 20 * time.Second
+)
 
 //+kubebuilder:rbac:groups=app.zhtang.github.io,resources=ordereddeployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=app.zhtang.github.io,resources=ordereddeployments/status,verbs=get;update;patch
@@ -47,11 +54,58 @@ type OrderedDeploymentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *OrderedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	orderedDeployment := &appv1.OrderedDeployment{}
+	err := r.Get(ctx, req.NamespacedName, orderedDeployment)
+	if err != nil {
+		logger.Error(err, "cannot get resource")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	return ctrl.Result{}, nil
+	// Reconcile logic: Iterate through the list of deployments and create/update them sequentially
+	for _, deploymentName := range orderedDeployment.Spec.DeploymentOrder {
+		// fetch the deployment resource
+		deployment := &appsv1.Deployment{}
+		err := r.Get(ctx, client.ObjectKey{Namespace: orderedDeployment.Namespace, Name: deploymentName}, deployment)
+		if err != nil {
+			logger.Info("info", "deployment", deployment.Name, "namespace", orderedDeployment.Name, "target", deploymentName)
+			logger.Error(err, "unable to fetch deployment", "deployment", deploymentName)
+			return ctrl.Result{}, err
+		}
+
+		// check if deployment state for the given deployment
+		deploymentReady := false
+		for _, condition := range deployment.Status.Conditions {
+			if condition.Type == appsv1.DeploymentAvailable && condition.Status == corev1.ConditionTrue {
+				deploymentReady = true
+				break
+			}
+		}
+
+		if !deploymentReady {
+			// this deployment is not ready. check back later
+			logger.Info("deployment not ready yet", "deployment", deploymentName)
+			return ctrl.Result{RequeueAfter: reconcileInterval}, nil
+		}
+
+		// Update the Deployment's image if needed
+		if deployment.Spec.Template.Spec.Containers[0].Image != orderedDeployment.Spec.ImageName {
+			previous := deployment.Spec.Template.Spec.Containers[0].Image
+			deployment.Spec.Template.Spec.Containers[0].Image = orderedDeployment.Spec.ImageName
+			err := r.Update(ctx, deployment)
+			if err != nil {
+				logger.Error(err, "unable to update Deployment", "deployment", deploymentName)
+				return ctrl.Result{}, err
+			}
+
+			logger.Info("Deployment reconciled", "deployment", deploymentName, "previous", previous, "now", orderedDeployment.Spec.ImageName)
+		} else {
+			logger.Info("Deployment already synced", "deployment", deploymentName)
+		}
+	}
+
+	return ctrl.Result{RequeueAfter: reconcileInterval}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
